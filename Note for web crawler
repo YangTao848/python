@@ -87,3 +87,220 @@ with open('Blowing in the wind.txt', 'r+') as f:
     f.seek(0)
     f.write(string)
     
+请将Intel和IBM公司近一年来每个月开票价的平均值绘制在一张图中（用subplot）。
+import requests
+import re
+import json
+import pandas as pd
+from datetime import date
+import time
+from pylab import * 
+from scipy.cluster.vq import * 
+
+
+def retrieve_quotes_historical(stock_code):
+    quotes = []
+    url = 'https://finance.yahoo.com/quote/%s/history?p=%s' % (stock_code, stock_code)
+    r = requests.get(url)
+    m = re.findall('"HistoricalPriceStore":{"prices":(.*?),"isPending"', r.text)
+    if m:
+        quotes = json.loads(m[0])
+        quotes = quotes[::-1]
+    return  [item for item in quotes if not 'type' in item]
+
+def create_aveg_open(stock_code):
+    quotes = retrieve_quotes_historical(stock_code)
+    list1 = []
+    for i in range(len(quotes)):
+        x = date.fromtimestamp(quotes[i]['date'])
+        y = date.strftime(x,'%Y-%m-%d')   
+        list1.append(y)
+    quotesdf_ori = pd.DataFrame(quotes, index = list1)
+    listtemp = []
+    for i in range(len(quotesdf_ori)):
+        temp = time.strptime(quotesdf_ori.index[i],"%Y-%m-%d")
+        listtemp.append(temp.tm_mon)
+    tempdf = quotesdf_ori.copy()
+    tempdf['month'] = listtemp
+    meanopen = tempdf.groupby('month').open.mean()
+    return meanopen
+    
+open1 = create_aveg_open('INTC')
+open2 = create_aveg_open('IBM')
+subplot(211)          
+plt.plot(open1.index,open1.values,color='r',marker='o')
+subplot(212)
+plt.plot(open1.index,open2.values,color='green',marker='o')
+
+# Filename: kmeansDJI.py
+import requests
+import re
+import json
+import pandas as pd
+from sklearn.cluster import KMeans 
+import numpy as np
+
+
+def retrieve_quotes_historical(stock_code):
+    quotes = []
+    url = 'https://finance.yahoo.com/quote/%s/history?p=%s' % (stock_code, stock_code)
+    r = requests.get(url)
+    m = re.findall('"HistoricalPriceStore":{"prices":(.*?),"isPending"', r.text)
+    if m:
+        quotes = json.loads(m[0])
+        quotes = quotes[::-1]
+    return  [item for item in quotes if not 'type' in item]
+
+def create_df(stock_code):
+    quotes = retrieve_quotes_historical(stock_code)
+    list1 = ['close','date','high','low','open','volume']
+    df_totalvolume = pd.DataFrame(quotes,columns=list1)
+    return df_totalvolume
+
+listDji = ['MMM','AXP','AAPL','BA','CAT','CVX','CSCO','KO','DIS','DD']
+listTemp = [0] * len(listDji)
+for i in range(len(listTemp)):
+    listTemp[i] = create_df(listDji[i]).close
+status = [0] * len(listDji)
+for i in range(len(status)):
+    status[i] = np.sign(np.diff(listTemp[i]))
+kmeans = KMeans(n_clusters = 3).fit(status)
+pred=kmeans.predict(status)
+print(pred)
+
+# Filename: plotKO.py
+import requests
+import re
+import json
+import pandas as pd
+from datetime import date
+import time
+import matplotlib.pyplot as plt
+
+def retrieve_quotes_historical(stock_code):
+    quotes = []
+    url = 'https://finance.yahoo.com/quote/%s/history?p=%s' % (stock_code, stock_code)
+    r = requests.get(url)
+    m = re.findall('"HistoricalPriceStore":{"prices":(.*?),"isPending"', r.text)
+    if m:
+        quotes = json.loads(m[0])
+        quotes = quotes[::-1]
+    return  [item for item in quotes if not 'type' in item]
+
+quotes = retrieve_quotes_historical('KO')
+list1 = []
+for i in range(len(quotes)):
+    x = date.fromtimestamp(quotes[i]['date'])
+    y = date.strftime(x,'%Y-%m-%d')
+    list1.append(y)
+quotesdf_ori = pd.DataFrame(quotes, index = list1)
+quotesdf = quotesdf_ori.drop(['date'], axis = 1)
+listtemp = []
+for i in range(len(quotesdf)):
+    temp = time.strptime(quotesdf.index[i],"%Y-%m-%d")
+    listtemp.append(temp.tm_mon)
+tempdf = quotesdf.copy()
+tempdf['month'] = listtemp
+closeMeansKO = tempdf.groupby('month').close.mean()
+x = closeMeansKO.index
+y = closeMeansKO.values
+plt.plot(x, y)
+plt.savefig('1.jpg')
+
+# Filename: plot_volumes.py
+
+import requests
+import re
+import json
+import pandas as pd
+from datetime import date
+import time
+from pylab import * 
+from scipy.cluster.vq import * 
+
+
+def retrieve_quotes_historical(stock_code):
+    quotes = []
+    url = 'https://finance.yahoo.com/quote/%s/history?p=%s' % (stock_code, stock_code)
+    r = requests.get(url)
+    m = re.findall('"HistoricalPriceStore":{"prices":(.*?),"isPending"', r.text)
+    if m:
+        quotes = json.loads(m[0])
+        quotes = quotes[::-1]
+    return  [item for item in quotes if not 'type' in item]
+
+def create_volumes(stock_code):
+    quotes = retrieve_quotes_historical(stock_code)
+    list1 = []
+    for i in range(len(quotes)):
+        x = date.fromtimestamp(quotes[i]['date'])
+        y = date.strftime(x,'%Y-%m-%d')   
+        list1.append(y)
+    quotesdf_ori = pd.DataFrame(quotes, index = list1)
+    listtemp = []
+    for i in range(len(quotesdf_ori)):
+        temp = time.strptime(quotesdf_ori.index[i],"%Y-%m-%d")
+        listtemp.append(temp.tm_mon)
+    tempdf = quotesdf_ori.copy()
+    tempdf['month'] = listtemp
+    totalvolume = tempdf.groupby('month').volume.sum()
+    return totalvolume
+                  
+INTC_volumes = create_volumes('INTC')
+IBM_volumes = create_volumes('IBM')
+quotesIIdf = pd.DataFrame()
+quotesIIdf['INTC'] = INTC_volumes
+quotesIIdf['IBM'] = IBM_volumes
+quotesIIdf.plot(kind = 'bar')
+
+# Filename: stock.py
+
+import requests
+import re
+import pandas as pd
+
+def retrieve_dji_list():
+    r = requests.get('http://money.cnn.com/data/dow30/')
+    search_pattern = re.compile('class="wsod_symbol">(.*?)<\/a>.*<span.*">(.*)<\/span>.*\n.*class="wsod_stream">(.*)<\/span>')
+    dji_list_in_text = re.findall(search_pattern, r.text)
+    dji_list = []
+    for item in dji_list_in_text:
+        dji_list.append([item[0], item[1], float(item[2])])
+    return dji_list
+
+dji_list = retrieve_dji_list()
+djidf = pd.DataFrame(dji_list)
+cols = ['code', 'name', 'lasttrade']
+djidf.columns = cols
+print(djidf)
+
+# Filename: quotes_history_v2.py
+
+import requests
+import re
+import json
+import pandas as pd
+from datetime import date
+
+def retrieve_quotes_historical(stock_code):
+    quotes = []
+    url = 'https://finance.yahoo.com/quote/%s/history?p=%s' % (stock_code, stock_code)
+    r = requests.get(url)
+    m = re.findall('"HistoricalPriceStore":{"prices":(.*?),"isPending"', r.text)
+    if m:
+        quotes = json.loads(m[0])
+        quotes = quotes[::-1]
+    return  [item for item in quotes if not 'type' in item]
+
+quotes = retrieve_quotes_historical('IBM')
+list1 = []
+for i in range(len(quotes)):
+    x = date.fromtimestamp(quotes[i]['date'])
+    y = date.strftime(x,'%Y-%m-%d')
+    list1.append(y)
+quotesdf_ori = pd.DataFrame(quotes, index = list1)
+quotesdf = quotesdf_ori.drop(['date'], axis = 1)
+print(quotesdf)
+
+
+
